@@ -61,6 +61,8 @@ export interface AdminStats {
     total_users: number
     total_sessions: number
     recent_activity_24h: number
+    total_logins_24h: number
+    total_logouts_24h: number
     most_active_users: Array<{
         user_email: string
         action_count: number
@@ -68,6 +70,33 @@ export interface AdminStats {
     most_used_agents: Array<{
         agent_type: string
         usage_count: number
+    }>
+    agent_usage_distribution: Array<{
+        agent_type: string
+        usage_count: number
+        percentage: number
+    }>
+    action_breakdown_7d: Array<{
+        action: string
+        count: number
+    }>
+    resource_breakdown_7d: Array<{
+        resource_type: string
+        count: number
+    }>
+    activity_timeline_7d: Array<{
+        date: string
+        actions: number
+        sessions_created: number
+        user_logins: number
+        user_logouts: number
+    }>
+    activity_timeline_24h: Array<{
+        hour: string
+        actions: number
+        sessions_created: number
+        user_logins: number
+        user_logouts: number
     }>
 }
 

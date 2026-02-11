@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,19 +22,87 @@ import {
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AuditLog, AuditAction } from '@/types'
-import { Clock, Filter, ChevronLeft, ChevronRight, Search, Shield, Trash2 } from 'lucide-react'
+import {
+    Clock,
+    Filter,
+    ChevronLeft,
+    ChevronRight,
+    Search,
+    Shield,
+    Trash2,
+    LogIn,
+    LogOut,
+    Database,
+    Activity,
+} from 'lucide-react'
 import Link from 'next/link'
 
 const AUDIT_ACTIONS: AuditAction[] = [
     'user.login',
     'user.logout',
     'user.signup',
+    'user.password_reset',
     'session.created',
     'session.updated',
     'session.deleted',
     'session.restored',
     'role.updated',
 ]
+
+function formatActionLabel(action: string) {
+    return action.replace('.', ' ').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function getActionColor(action: string) {
+    if (action.startsWith('user.')) return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+    if (action.startsWith('session.')) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+    if (action.startsWith('role.')) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+}
+
+function describeLog(log: AuditLog) {
+    const details = log.details || {}
+    if (log.action === 'session.created') {
+        const sessionName = typeof details.session_name === 'string' ? details.session_name : null
+        const agentType = typeof details.agent_type === 'string' ? details.agent_type.replace(/_/g, ' ') : 'agent session'
+        return sessionName ? `Created session "${sessionName}" (${agentType})` : `Created ${agentType} session`
+    }
+    if (log.action === 'session.updated') {
+        return 'Updated session'
+    }
+    if (log.action === 'session.deleted') {
+        return 'Deleted session'
+    }
+    if (log.action === 'session.restored') {
+        return 'Restored session'
+    }
+    if (log.action === 'role.updated') {
+        const target = typeof details.target_user_email === 'string' ? details.target_user_email : 'a user'
+        const role = typeof details.new_role === 'string' ? details.new_role : 'user'
+        return `Changed ${target} role to ${role}`
+    }
+    if (log.action === 'user.login') {
+        return 'User logged in'
+    }
+    if (log.action === 'user.logout') {
+        return 'User logged out'
+    }
+    if (log.action === 'user.signup') {
+        return 'User signed up'
+    }
+    if (log.action === 'user.password_reset') {
+        return 'User reset password'
+    }
+    return formatActionLabel(log.action)
+}
+
+function detailsPreview(log: AuditLog) {
+    if (!log.details) return 'No metadata'
+    const json = JSON.stringify(log.details)
+    if (!json) return 'No metadata'
+    if (json.length <= 100) return json
+    return `${json.slice(0, 100)}...`
+}
 
 export default function AuditLogsPage() {
     const router = useRouter()
@@ -45,7 +113,6 @@ export default function AuditLogsPage() {
     const [showClearDialog, setShowClearDialog] = useState(false)
     const [clearing, setClearing] = useState(false)
 
-    // Filters
     const [actionFilter, setActionFilter] = useState<string>('all')
     const [searchEmail, setSearchEmail] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
@@ -99,7 +166,6 @@ export default function AuditLogsPage() {
                 throw new Error('Failed to clear audit logs')
             }
 
-            // Refresh the logs
             await fetchAuditLogs()
             setShowClearDialog(false)
         } catch (err: any) {
@@ -110,23 +176,20 @@ export default function AuditLogsPage() {
     }
 
     const filteredLogs = searchEmail
-        ? logs.filter(log =>
-            log.user_email?.toLowerCase().includes(searchEmail.toLowerCase())
-        )
+        ? logs.filter((log) => log.user_email?.toLowerCase().includes(searchEmail.toLowerCase()))
         : logs
 
     const totalPages = Math.ceil(totalCount / logsPerPage)
 
-    const getActionColor = (action: string) => {
-        if (action.startsWith('user.')) return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-        if (action.startsWith('session.')) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-        if (action.startsWith('role.')) return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-    }
+    const pageMetrics = useMemo(() => {
+        const loginCount = filteredLogs.filter((l) => l.action === 'user.login').length
+        const logoutCount = filteredLogs.filter((l) => l.action === 'user.logout').length
+        const sessionCreatedCount = filteredLogs.filter((l) => l.action === 'session.created').length
+        return { loginCount, logoutCount, sessionCreatedCount }
+    }, [filteredLogs])
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div>
                 <Link href="/admin">
                     <Button variant="ghost" size="sm" className="mb-4">
@@ -139,11 +202,57 @@ export default function AuditLogsPage() {
                     <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Audit Logs</h1>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                    Complete audit trail of all system activities
+                    Full event trail: logins, logouts, session activity, role changes, and action metadata.
                 </p>
             </div>
 
-            {/* Filters */}
+            <div className="grid gap-4 md:grid-cols-4">
+                <Card className="border-warm-border bg-warm-surface">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-amber-500" />
+                            Visible Events
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="font-heading text-2xl font-bold text-foreground">{filteredLogs.length}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-warm-border bg-warm-surface">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                            <LogIn className="h-4 w-4 text-emerald-500" />
+                            Logins
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="font-heading text-2xl font-bold text-foreground">{pageMetrics.loginCount}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-warm-border bg-warm-surface">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                            <LogOut className="h-4 w-4 text-rose-500" />
+                            Logouts
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="font-heading text-2xl font-bold text-foreground">{pageMetrics.logoutCount}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-warm-border bg-warm-surface">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Database className="h-4 w-4 text-sky-500" />
+                            Sessions Created
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="font-heading text-2xl font-bold text-foreground">{pageMetrics.sessionCreatedCount}</div>
+                    </CardContent>
+                </Card>
+            </div>
+
             <Card className="border-warm-border bg-warm-surface">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-foreground">
@@ -155,15 +264,21 @@ export default function AuditLogsPage() {
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Action Type</label>
-                            <Select value={actionFilter} onValueChange={setActionFilter}>
+                            <Select
+                                value={actionFilter}
+                                onValueChange={(value) => {
+                                    setCurrentPage(1)
+                                    setActionFilter(value)
+                                }}
+                            >
                                 <SelectTrigger>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Actions</SelectItem>
-                                    {AUDIT_ACTIONS.map(action => (
+                                    {AUDIT_ACTIONS.map((action) => (
                                         <SelectItem key={action} value={action}>
-                                            {action}
+                                            {formatActionLabel(action)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -185,15 +300,12 @@ export default function AuditLogsPage() {
                 </CardContent>
             </Card>
 
-            {/* Logs Table */}
             <Card className="border-warm-border bg-warm-surface">
                 <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                         <div>
                             <CardTitle className="text-foreground">Activity Log</CardTitle>
-                            <CardDescription>
-                                Showing {filteredLogs.length} of {totalCount} entries
-                            </CardDescription>
+                            <CardDescription>Showing {filteredLogs.length} of {totalCount} entries</CardDescription>
                         </div>
                         <Button
                             variant="destructive"
@@ -227,24 +339,35 @@ export default function AuditLogsPage() {
                                 <TableHeader>
                                     <TableRow className="border-warm-border hover:bg-warm-muted/50">
                                         <TableHead className="text-foreground">Action</TableHead>
+                                        <TableHead className="text-foreground">Description</TableHead>
                                         <TableHead className="text-foreground">User</TableHead>
-                                        <TableHead className="text-foreground">Time</TableHead>
                                         <TableHead className="text-foreground">Resource</TableHead>
+                                        <TableHead className="text-foreground">Details</TableHead>
                                         <TableHead className="text-foreground">IP</TableHead>
+                                        <TableHead className="text-foreground">Time</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredLogs.map((log) => (
-                                        <TableRow key={log.id} className="border-warm-border hover:bg-warm-muted/50">
+                                        <TableRow key={log.id} className="border-warm-border hover:bg-warm-muted/50 align-top">
                                             <TableCell>
                                                 <span className={`text-xs font-mono px-2 py-1 rounded ${getActionColor(log.action)}`}>
                                                     {log.action}
                                                 </span>
                                             </TableCell>
+                                            <TableCell className="text-sm text-foreground min-w-[220px]">{describeLog(log)}</TableCell>
                                             <TableCell className="font-medium text-foreground">{log.user_email || 'System'}</TableCell>
+                                            <TableCell className="text-muted-foreground">
+                                                {log.resource_type || 'N/A'}
+                                                {log.resource_id ? (
+                                                    <div className="text-xs font-mono mt-1 text-muted-foreground/80">{log.resource_id}</div>
+                                                ) : null}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground max-w-[280px]">
+                                                <code className="whitespace-pre-wrap break-all">{detailsPreview(log)}</code>
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground text-sm">{log.ip_address || 'N/A'}</TableCell>
                                             <TableCell className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</TableCell>
-                                            <TableCell className="text-muted-foreground">{log.resource_type || '—'}</TableCell>
-                                            <TableCell className="text-muted-foreground text-sm">{log.ip_address || '—'}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -252,7 +375,6 @@ export default function AuditLogsPage() {
                         </div>
                     )}
 
-                    {/* Pagination */}
                     {!loading && totalPages > 1 && (
                         <div className="flex items-center justify-between mt-6 pt-4 border-t border-warm-border px-6 pb-6">
                             <p className="text-sm text-muted-foreground">
@@ -262,7 +384,7 @@ export default function AuditLogsPage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
                                 >
                                     <ChevronLeft className="h-4 w-4" />
@@ -271,7 +393,7 @@ export default function AuditLogsPage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                                     disabled={currentPage === totalPages}
                                 >
                                     Next
@@ -283,28 +405,19 @@ export default function AuditLogsPage() {
                 </CardContent>
             </Card>
 
-            {/* Clear Logs Confirmation Dialog */}
             <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Clear All Audit Logs?</DialogTitle>
                         <DialogDescription>
-                            This action cannot be undone. This will permanently delete all audit log entries from the database.
+                            This action cannot be undone. This permanently deletes every audit trail entry.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowClearDialog(false)}
-                            disabled={clearing}
-                        >
+                        <Button variant="outline" onClick={() => setShowClearDialog(false)} disabled={clearing}>
                             Cancel
                         </Button>
-                        <Button
-                            variant="destructive"
-                            onClick={handleClearLogs}
-                            disabled={clearing}
-                        >
+                        <Button variant="destructive" onClick={handleClearLogs} disabled={clearing}>
                             {clearing ? 'Clearing...' : 'Clear All Logs'}
                         </Button>
                     </DialogFooter>

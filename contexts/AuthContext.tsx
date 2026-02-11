@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 interface AuthContextType {
     user: User | null
     loading: boolean
-    signIn: (email: string, password: string) => Promise<{ error: any }>
+    signIn: (email: string, password: string) => Promise<{ error: Error | null }>
     signInWithGoogle: () => Promise<{ error: any }>
     signOut: () => Promise<void>
 }
@@ -36,11 +36,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [supabase.auth])
 
     const signIn = async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        })
-        return { error }
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                return { error: new Error(data.error || 'Login failed') }
+            }
+            return { error: null }
+        } catch (error: any) {
+            return { error }
+        }
     }
 
     const signInWithGoogle = async () => {
