@@ -1,0 +1,324 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Theme - Clean and Modern */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 262 83% 58%;
+    --radius: 0.75rem;
+
+    /* Dashboard warm panel (fallbacks when not in dashboard) */
+    --dash-bg: 30 25% 97%;
+    --dash-surface: 0 0% 100%;
+    --dash-border: 30 15% 88%;
+    --dash-muted: 30 10% 92%;
+    --dash-accent: 38 92% 50%;
+    --dash-accent-muted: 38 60% 94%;
+
+    /* Custom colors for icons */
+    --icon-blue: 217 91% 60%;
+    --icon-purple: 271 81% 56%;
+    --icon-cyan: 189 94% 43%;
+    --icon-pink: 330 81% 60%;
+    --icon-orange: 25 95% 53%;
+    --icon-yellow: 45 93% 47%;
+    --icon-green: 142 71% 45%;
+  }
+
+  .dark {
+    /* Dark Theme - Matching Sample Images */
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 47% 10%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 47% 10%;
+    --popover-foreground: 213 31% 91%;
+    --primary: 263 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 47% 11%;
+    --secondary-foreground: 213 31% 91%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 213 31% 91%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 213 31% 91%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 263 70% 50%;
+
+    /* Dashboard warm panel - dark mode */
+    --dash-bg: 30 15% 11%;
+    --dash-surface: 30 12% 14%;
+    --dash-border: 30 10% 20%;
+    --dash-muted: 30 10% 18%;
+    --dash-accent: 38 92% 55%;
+    --dash-accent-muted: 38 30% 18%;
+
+    /* Custom colors for icons - vibrant in dark mode */
+    --icon-blue: 217 91% 60%;
+    --icon-purple: 271 81% 66%;
+    --icon-cyan: 189 94% 43%;
+    --icon-pink: 330 81% 60%;
+    --icon-orange: 25 95% 53%;
+    --icon-yellow: 45 93% 47%;
+    --icon-green: 142 71% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+
+  /* Glassmorphism effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-light {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Gradient backgrounds */
+  .gradient-purple {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(271 81% 66%) 100%);
+  }
+
+  .gradient-blue {
+    background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(189 94% 43%) 100%);
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+}
+
+@layer components {
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  .card-hover:hover {
+    @apply scale-[1.02] shadow-lg;
+  }
+
+  /* Icon badge styles */
+  .icon-badge {
+    @apply rounded-xl p-3 transition-all duration-300;
+  }
+
+  .icon-badge:hover {
+    @apply scale-110 shadow-lg;
+  }
+
+  .icon-badge-blue {
+    @apply bg-blue-500/10 text-blue-500;
+  }
+
+  .icon-badge-purple {
+    @apply bg-purple-500/10 text-purple-500;
+  }
+
+  .icon-badge-cyan {
+    @apply bg-cyan-500/10 text-cyan-500;
+  }
+
+  .icon-badge-pink {
+    @apply bg-pink-500/10 text-pink-500;
+  }
+
+  .icon-badge-orange {
+    @apply bg-orange-500/10 text-orange-500;
+  }
+
+  .icon-badge-yellow {
+    @apply bg-yellow-500/10 text-yellow-500;
+  }
+
+  .icon-badge-green {
+    @apply bg-green-500/10 text-green-500;
+  }
+}
+
+/* Keyframe animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(139, 92, 246, 0);
+  }
+}
+
+@keyframes gradient {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+}
+
+/* Dashboard: warm main area (used with dark sidebar) */
+.dashboard-warm {
+  --dash-bg: 30 25% 97%;
+  --dash-surface: 0 0% 100%;
+  --dash-border: 30 15% 88%;
+  --dash-muted: 30 10% 92%;
+  --dash-accent: 38 92% 50%;
+  --dash-accent-muted: 38 60% 94%;
+}
+
+/* Modern dark mode for dashboard main area (zinc + amber) */
+.dark .dashboard-warm {
+  --dash-bg: 240 6% 8%;
+  --dash-surface: 240 5% 11%;
+  --dash-border: 240 4% 18%;
+  --dash-muted: 240 4% 15%;
+  --dash-accent: 38 92% 55%;
+  --dash-accent-muted: 38 40% 22%;
+}
+
+/* Dashboard content uses theme foreground so text is readable in light/dark */
+.dashboard-warm .dash-heading { color: hsl(var(--foreground)); }
+.dashboard-warm .dash-muted { color: hsl(var(--muted-foreground)); }
+
+/* Bento grid layouts */
+.bento-grid {
+  display: grid;
+  gap: 1rem;
+  grid-auto-rows: minmax(80px, auto);
+}
+
+.bento-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.bento-grid-4 .span-2 {
+  grid-column: span 2;
+}
+
+.bento-grid-4 .span-2-row {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.bento-grid-4 .row-2 {
+  grid-row: span 2;
+}
+
+@media (max-width: 1024px) {
+  .bento-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-grid-4 .span-2,
+  .bento-grid-4 .span-2-row {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .bento-grid-4 {
+    grid-template-columns: 1fr;
+  }
+  .bento-grid-4 .span-2,
+  .bento-grid-4 .span-2-row,
+  .bento-grid-4 .row-2 {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+}
