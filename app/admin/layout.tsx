@@ -13,12 +13,14 @@ import {
     Shield,
     Menu,
     X,
+    Zap,
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Credits', href: '/admin/credits', icon: Zap },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: Clock },
 ]
 
@@ -81,8 +83,8 @@ export default function AdminLayout({
                                     key={item.name}
                                     href={item.href}
                                     className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive
-                                            ? 'bg-amber-500/20 text-amber-400'
-                                            : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
+                                        ? 'bg-amber-500/20 text-amber-400'
+                                        : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-zinc-100'
                                         }`}
                                     onClick={() => {
                                         if (typeof window !== 'undefined' && window.innerWidth < 1024) {
