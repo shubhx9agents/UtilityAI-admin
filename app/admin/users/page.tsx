@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AdminUser, UserRoleType } from '@/types'
-import { Users, Search, ChevronLeft, Shield, Crown, User } from 'lucide-react'
+import { Users, Search, ChevronLeft, Shield, Crown, User, Sparkles, Ban } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -32,9 +32,15 @@ export default function UserManagementPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
+
+    // Role update state
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
     const [newRole, setNewRole] = useState<UserRoleType>('user')
     const [updating, setUpdating] = useState(false)
+
+    // Revoke subscription state
+    const [revokeTarget, setRevokeTarget] = useState<AdminUser | null>(null)
+    const [revoking, setRevoking] = useState(false)
 
     useEffect(() => {
         fetchUsers()
@@ -88,6 +94,32 @@ export default function UserManagementPage() {
         }
     }
 
+    const handleRevokeSubscription = async () => {
+        if (!revokeTarget) return
+
+        try {
+            setRevoking(true)
+            const res = await fetch(`/api/admin/users/${revokeTarget.id}/subscription`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'revoke' }),
+            })
+
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'Failed to revoke subscription')
+            }
+
+            toast.success(`Premium subscription revoked for ${revokeTarget.email}`)
+            setRevokeTarget(null)
+            fetchUsers()
+        } catch (err: any) {
+            toast.error(err.message)
+        } finally {
+            setRevoking(false)
+        }
+    }
+
     const filteredUsers = searchQuery
         ? users.filter(user =>
             user.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -96,6 +128,7 @@ export default function UserManagementPage() {
 
     const adminCount = users.filter(u => u.role === 'admin').length
     const userCount = users.filter(u => u.role === 'user').length
+    const premiumCount = users.filter(u => u.subscription_type === 'premium').length
 
     return (
         <div className="space-y-6">
@@ -112,12 +145,12 @@ export default function UserManagementPage() {
                     <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight text-foreground">User Management</h1>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                    Manage user accounts and roles
+                    Manage user accounts, roles, and subscriptions
                 </p>
             </div>
 
             {/* Stats */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-4">
                 <Card className="border-warm-border bg-warm-surface">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
@@ -143,6 +176,15 @@ export default function UserManagementPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="font-heading text-2xl font-bold text-foreground">{userCount}</div>
+                    </CardContent>
+                </Card>
+                <Card className="border-warm-border bg-warm-surface">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Premium Users</CardTitle>
+                        <Sparkles className="h-4 w-4 text-amber-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="font-heading text-2xl font-bold text-amber-500">{premiumCount}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -194,10 +236,11 @@ export default function UserManagementPage() {
                                     <TableRow className="border-warm-border hover:bg-warm-muted/50">
                                         <TableHead className="text-foreground">Email</TableHead>
                                         <TableHead className="text-foreground">Role</TableHead>
+                                        <TableHead className="text-foreground">Subscription</TableHead>
                                         <TableHead className="text-foreground">Joined</TableHead>
                                         <TableHead className="text-foreground">Last Login</TableHead>
                                         <TableHead className="text-foreground">Sessions</TableHead>
-                                        <TableHead className="text-right text-foreground">Action</TableHead>
+                                        <TableHead className="text-right text-foreground">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -209,9 +252,24 @@ export default function UserManagementPage() {
                                                     <span className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 px-2 py-1 rounded inline-flex items-center gap-1">
                                                         <Crown className="h-3 w-3" /> Admin
                                                     </span>
+                                                ) : user.role === 'mod' ? (
+                                                    <span className="text-xs bg-sky-500/20 text-sky-600 dark:text-sky-400 px-2 py-1 rounded inline-flex items-center gap-1">
+                                                        <Shield className="h-3 w-3" /> Mod
+                                                    </span>
                                                 ) : (
                                                     <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded inline-flex items-center gap-1">
                                                         <User className="h-3 w-3" /> User
+                                                    </span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {user.subscription_type === 'premium' ? (
+                                                    <span className="text-xs bg-amber-500/15 text-amber-500 border border-amber-500/30 px-2 py-1 rounded-full inline-flex items-center gap-1 font-semibold">
+                                                        <Sparkles className="h-3 w-3" /> Premium
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full inline-flex items-center gap-1">
+                                                        Free
                                                     </span>
                                                 )}
                                             </TableCell>
@@ -221,17 +279,30 @@ export default function UserManagementPage() {
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">{user.session_count}</TableCell>
                                             <TableCell className="text-right">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="rounded-lg border-warm-border"
-                                                    onClick={() => {
-                                                        setSelectedUser(user)
-                                                        setNewRole(user.role)
-                                                    }}
-                                                >
-                                                    Change Role
-                                                </Button>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="rounded-lg border-warm-border"
+                                                        onClick={() => {
+                                                            setSelectedUser(user)
+                                                            setNewRole(user.role)
+                                                        }}
+                                                    >
+                                                        Change Role
+                                                    </Button>
+                                                    {user.subscription_type === 'premium' && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="rounded-lg border-red-500/30 text-red-500 hover:bg-red-500/10 hover:border-red-500/50"
+                                                            onClick={() => setRevokeTarget(user)}
+                                                        >
+                                                            <Ban className="h-3 w-3 mr-1" />
+                                                            Revoke
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -281,6 +352,39 @@ export default function UserManagementPage() {
                         </Button>
                         <Button onClick={handleUpdateRole} disabled={updating || newRole === selectedUser?.role}>
                             {updating ? 'Updating...' : 'Update Role'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Revoke Subscription Confirmation Dialog */}
+            <Dialog open={!!revokeTarget} onOpenChange={(open) => !open && setRevokeTarget(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Ban className="h-5 w-5 text-red-500" />
+                            Revoke Premium Subscription
+                        </DialogTitle>
+                        <DialogDescription>
+                            This will downgrade <strong>{revokeTarget?.email}</strong> from Premium back to the Free plan.
+                            They will lose access to all premium features immediately.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-500">
+                            ⚠️ This action cannot be undone from the admin panel. The user will need to subscribe again through the normal upgrade flow to regain premium access.
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRevokeTarget(null)} disabled={revoking}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleRevokeSubscription}
+                            disabled={revoking}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {revoking ? 'Revoking...' : 'Yes, Revoke Premium'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

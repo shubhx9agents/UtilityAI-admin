@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         const supabaseAdmin = createServiceRoleClient()
         const supabase = await createClient()
 
-        // Get all users from auth.users with their roles and session counts
+        // Get all users from auth.users
         const { data: users, error: usersError } = await supabaseAdmin.auth.admin.listUsers()
 
         if (usersError) {
@@ -27,6 +27,15 @@ export async function GET(request: NextRequest) {
 
         if (rolesError) {
             console.error('Error fetching roles:', rolesError)
+        }
+
+        // Get profiles for subscription type (account_type)
+        const { data: profiles, error: profilesError } = await supabaseAdmin
+            .from('profiles')
+            .select('id, account_type')
+
+        if (profilesError) {
+            console.error('Error fetching profiles:', profilesError)
         }
 
         // Get session counts per user
@@ -43,6 +52,13 @@ export async function GET(request: NextRequest) {
             roles?.map(r => [r.user_id, r.role]) || []
         )
 
+        // Create a map of account types (id → 'free' | 'premium')
+        const accountTypeMap = new Map<string, 'free' | 'premium'>()
+        profiles?.forEach(p => {
+            const isPremium = p.account_type === 'premium' || p.account_type === 'enterprise'
+            accountTypeMap.set(p.id, isPremium ? 'premium' : 'free')
+        })
+
         // Create a map of session counts
         const sessionCountMap = new Map<string, number>()
         sessionCounts?.forEach(s => {
@@ -57,6 +73,7 @@ export async function GET(request: NextRequest) {
             last_sign_in_at: user.last_sign_in_at || null,
             role: roleMap.get(user.id) || 'user',
             session_count: sessionCountMap.get(user.id) || 0,
+            subscription_type: accountTypeMap.get(user.id) || 'free',
         }))
 
         return NextResponse.json({ data: adminUsers })

@@ -139,4 +139,5 @@ export const AUDIT_ACTIONS = {
 
     // Admin actions
     ROLE_UPDATED: 'role.updated' as AuditAction,
+    SUBSCRIPTION_REVOKED: 'subscription.revoked' as AuditAction,
 } as const

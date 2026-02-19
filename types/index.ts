@@ -33,6 +33,7 @@ export type AuditAction =
     | 'session.deleted'
     | 'session.restored'
     | 'role.updated'
+    | 'subscription.revoked'
 
 export interface AuditLog {
     id: string
@@ -107,6 +108,7 @@ export interface AdminUser {
     last_sign_in_at: string | null
     role: UserRoleType
     session_count: number
+    subscription_type: 'free' | 'premium'
 }
 
 // API Response Types
