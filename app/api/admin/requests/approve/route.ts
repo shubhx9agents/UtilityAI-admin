@@ -53,14 +53,14 @@ export async function POST(req: Request) {
     // Determine the user app URL (fallback to localhost:3000 if not specified)
     const userAppUrl = process.env.NEXT_PUBLIC_USER_APP_URL || 'http://localhost:3000'
 
-    // Invite the user via email. This creates the user and triggers the welcome/magic link email
-    // Point the redirect directly to the PKCE callback so the user is securely logged in
+    // Invite the user via email. This creates the user and triggers the welcome/magic link email.
+    // Redirect directly to reset-password so Supabase hash tokens are preserved in the browser URL.
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(request.email, {
       data: {
         name: request.name,
         must_change_password: true,
       },
-      redirectTo: `${userAppUrl}/auth/callback?next=/reset-password`
+      redirectTo: `${userAppUrl}/reset-password`
     })
 
     if (inviteError) {
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       .eq('id', requestId)
 
     return NextResponse.json({ message: 'User invited successfully' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error approving request:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
