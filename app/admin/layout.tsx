@@ -19,6 +19,7 @@ import { useState } from 'react'
 
 const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Access Requests', href: '/admin/requests', icon: Shield },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Credits', href: '/admin/credits', icon: Zap },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: Clock },
