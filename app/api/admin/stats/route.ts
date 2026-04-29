@@ -62,10 +62,23 @@ export async function GET(request: NextRequest) {
             .sort((a, b) => b.action_count - a.action_count)
             .slice(0, 5)
 
+        const url = new URL(request.url)
+        const agentPeriod = url.searchParams.get('agent_period') || 'all'
+
+        let sessionsQuery = supabase.from('agent_sessions').select('agent_type')
+
+        if (agentPeriod === '24h') {
+            sessionsQuery = sessionsQuery.gte('created_at', twentyFourHoursAgo)
+        } else if (agentPeriod === '7d') {
+            sessionsQuery = sessionsQuery.gte('created_at', sevenDayStartIso)
+        } else if (agentPeriod === '30d') {
+            const thirtyDaysAgo = new Date()
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+            sessionsQuery = sessionsQuery.gte('created_at', thirtyDaysAgo.toISOString())
+        }
+
         // Get most used agents
-        const { data: sessions } = await supabase
-            .from('agent_sessions')
-            .select('agent_type')
+        const { data: sessions } = await sessionsQuery
 
         const agentUsageCounts = new Map<string, number>()
         sessions?.forEach(session => {

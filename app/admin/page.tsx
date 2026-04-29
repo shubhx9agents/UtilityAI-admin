@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { AdminStats, AuditLog } from '@/types'
 import {
     Users,
@@ -70,16 +71,17 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [timeRange, setTimeRange] = useState<'7d' | '24h'>('7d')
+    const [agentPeriod, setAgentPeriod] = useState('all')
 
     useEffect(() => {
         fetchDashboardData()
-    }, [])
+    }, [agentPeriod])
 
     const fetchDashboardData = async () => {
         try {
-            setLoading(true)
+            if (!stats) setLoading(true)
 
-            const statsRes = await fetch('/api/admin/stats')
+            const statsRes = await fetch(`/api/admin/stats?agent_period=${agentPeriod}`)
             if (!statsRes.ok) {
                 if (statsRes.status === 403) {
                     router.push('/dashboard')
@@ -260,21 +262,40 @@ export default function AdminDashboard() {
             <div className="grid gap-4 xl:grid-cols-3">
                 <Card className="border-warm-border bg-warm-surface xl:col-span-1">
                     <CardHeader>
-                        <CardTitle className="text-foreground">Most Used Agents</CardTitle>
-                        <CardDescription>Session share by agent type</CardDescription>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="text-foreground">Most Used Agents</CardTitle>
+                                <CardDescription>Session share by agent type</CardDescription>
+                            </div>
+                            <div className="w-28">
+                                <Select value={agentPeriod} onValueChange={setAgentPeriod}>
+                                    <SelectTrigger className="h-8 text-xs">
+                                        <SelectValue placeholder="Period" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Time</SelectItem>
+                                        <SelectItem value="24h">Last 24h</SelectItem>
+                                        <SelectItem value="7d">Last 7 Days</SelectItem>
+                                        <SelectItem value="30d">Last 30 Days</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                     </CardHeader>
-                    <CardContent className="h-[300px]">
+                    <CardContent className="h-[320px] pb-6">
                         {(stats?.agent_usage_distribution.length || 0) === 0 ? (
                             <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No session data yet</div>
                         ) : (
                             <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
+                                <PieChart margin={{ top: 0, bottom: 20, left: 0, right: 0 }}>
                                     <Pie
                                         data={stats?.agent_usage_distribution || []}
                                         dataKey="usage_count"
                                         nameKey="agent_type"
-                                        innerRadius={70}
-                                        outerRadius={110}
+                                        innerRadius={65}
+                                        outerRadius={95}
+                                        cx="50%"
+                                        cy="45%"
                                         paddingAngle={2}
                                     >
                                         {(stats?.agent_usage_distribution || []).map((entry, index) => (
@@ -285,7 +306,13 @@ export default function AdminDashboard() {
                                         formatter={(value) => [`${value ?? 0} sessions`, 'Usage']}
                                         labelFormatter={(label) => formatActionLabel(String(label || ''))}
                                     />
-                                    <Legend formatter={(value: string) => formatActionLabel(value)} />
+                                    <Legend
+                                        formatter={(value: string) => formatActionLabel(value)}
+                                        layout="horizontal"
+                                        verticalAlign="bottom"
+                                        align="center"
+                                        wrapperStyle={{ bottom: -10, paddingTop: '20px' }}
+                                    />
                                 </PieChart>
                             </ResponsiveContainer>
                         )}

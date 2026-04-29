@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AdminUser, UserRoleType } from '@/types'
-import { Users, Search, ChevronLeft, Shield, Crown, User, Sparkles, Ban } from 'lucide-react'
+import { Users, Search, ChevronLeft, Shield, Crown, User, Sparkles, Ban, Download } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -32,6 +32,11 @@ export default function UserManagementPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
+
+    // Filter & Export state
+    const [timeFilter, setTimeFilter] = useState('all')
+    const [customStartDate, setCustomStartDate] = useState('')
+    const [customEndDate, setCustomEndDate] = useState('')
 
     // Role update state
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
@@ -120,11 +125,75 @@ export default function UserManagementPage() {
         }
     }
 
-    const filteredUsers = searchQuery
-        ? users.filter(user =>
-            user.email.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        : users
+    const filteredUsers = users.filter((user) => {
+        if (searchQuery && !user.email.toLowerCase().includes(searchQuery.toLowerCase())) {
+            return false
+        }
+
+        if (timeFilter !== 'all') {
+            const userDate = new Date(user.created_at)
+            const now = new Date()
+
+            if (timeFilter === 'monthly') {
+                const thirtyDaysAgo = new Date()
+                thirtyDaysAgo.setDate(now.getDate() - 30)
+                if (userDate < thirtyDaysAgo) return false
+            } else if (timeFilter === 'quarterly') {
+                const ninetyDaysAgo = new Date()
+                ninetyDaysAgo.setDate(now.getDate() - 90)
+                if (userDate < ninetyDaysAgo) return false
+            } else if (timeFilter === 'yearly') {
+                const yearAgo = new Date()
+                yearAgo.setFullYear(now.getFullYear() - 1)
+                if (userDate < yearAgo) return false
+            } else if (timeFilter === 'custom') {
+                if (customStartDate) {
+                    const start = new Date(customStartDate)
+                    start.setHours(0, 0, 0, 0)
+                    if (userDate < start) return false
+                }
+                if (customEndDate) {
+                    const end = new Date(customEndDate)
+                    end.setHours(23, 59, 59, 999)
+                    if (userDate > end) return false
+                }
+            }
+        }
+        return true
+    })
+
+    const handleDownloadCSV = () => {
+        if (filteredUsers.length === 0) {
+            toast.error('No users to download')
+            return
+        }
+
+        const headers = ['ID', 'Email', 'Role', 'Subscription', 'Joined Date', 'Last Login', 'Sessions']
+        const csvContent = [
+            headers.join(','),
+            ...filteredUsers.map(u => {
+                return [
+                    u.id,
+                    `"${u.email}"`,
+                    u.role,
+                    u.subscription_type,
+                    new Date(u.created_at).toLocaleDateString(),
+                    u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString() : 'Never',
+                    u.session_count
+                ].join(',')
+            })
+        ].join('\n')
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.setAttribute('href', url)
+        link.setAttribute('download', `users_export_${timeFilter}_${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
 
     const adminCount = users.filter(u => u.role === 'admin').length
     const userCount = users.filter(u => u.role === 'user').length
@@ -189,20 +258,76 @@ export default function UserManagementPage() {
                 </Card>
             </div>
 
-            {/* Search */}
+            {/* Filters & Actions */}
             <Card className="border-warm-border bg-warm-surface">
-                <CardHeader>
-                    <CardTitle className="text-foreground">Search Users</CardTitle>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-foreground">Filter & Export</CardTitle>
+                    <CardDescription>Search by email, filter by joined date, and export to CSV</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Search by email..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9"
-                        />
+                    <div className="flex flex-col sm:flex-row gap-4 flex-wrap sm:items-end">
+                        <div className="flex-1 min-w-[200px] space-y-2">
+                            <label className="text-sm font-medium text-foreground">Search User</label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search by email..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-9"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="w-full sm:w-48 space-y-2">
+                            <label className="text-sm font-medium text-foreground">Time Period (Joined)</label>
+                            <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select period" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Time</SelectItem>
+                                    <SelectItem value="monthly">Last 30 Days (Monthly)</SelectItem>
+                                    <SelectItem value="quarterly">Last 90 Days (Quarterly)</SelectItem>
+                                    <SelectItem value="yearly">Last 365 Days (Yearly)</SelectItem>
+                                    <SelectItem value="custom">Custom Range</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {timeFilter === 'custom' && (
+                            <>
+                                <div className="w-full sm:w-36 space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Start Date</label>
+                                    <Input
+                                        type="date"
+                                        value={customStartDate}
+                                        onChange={(e) => setCustomStartDate(e.target.value)}
+                                        max={customEndDate || undefined}
+                                        className="w-full"
+                                    />
+                                </div>
+                                <div className="w-full sm:w-36 space-y-2">
+                                    <label className="text-sm font-medium text-foreground">End Date</label>
+                                    <Input
+                                        type="date"
+                                        value={customEndDate}
+                                        onChange={(e) => setCustomEndDate(e.target.value)}
+                                        min={customStartDate || undefined}
+                                        className="w-full"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        <Button
+                            onClick={handleDownloadCSV}
+                            variant="outline"
+                            className="w-full sm:w-auto border-warm-border hover:bg-warm-muted"
+                        >
+                            <Download className="h-4 w-4 mr-2" />
+                            Export CSV
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
