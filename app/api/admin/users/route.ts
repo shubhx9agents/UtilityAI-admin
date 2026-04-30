@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
             console.error('Error fetching roles:', rolesError)
         }
 
-        // Get profiles for subscription type (account_type)
+        // Get profiles for subscription type and status
         const { data: profiles, error: profilesError } = await supabaseAdmin
             .from('profiles')
-            .select('id, account_type')
+            .select('id, account_type, status')
 
         if (profilesError) {
             console.error('Error fetching profiles:', profilesError)
@@ -52,11 +52,13 @@ export async function GET(request: NextRequest) {
             roles?.map(r => [r.user_id, r.role]) || []
         )
 
-        // Create a map of account types (id → 'free' | 'premium')
+        // Create maps for account types and status
         const accountTypeMap = new Map<string, 'free' | 'premium'>()
+        const statusMap = new Map<string, string>()
         profiles?.forEach(p => {
             const isPremium = p.account_type === 'premium' || p.account_type === 'enterprise'
             accountTypeMap.set(p.id, isPremium ? 'premium' : 'free')
+            statusMap.set(p.id, p.status || 'active')
         })
 
         // Create a map of session counts
@@ -74,6 +76,7 @@ export async function GET(request: NextRequest) {
             role: roleMap.get(user.id) || 'user',
             session_count: sessionCountMap.get(user.id) || 0,
             subscription_type: accountTypeMap.get(user.id) || 'free',
+            status: (statusMap.get(user.id) as 'active' | 'suspended' | 'deleted') || 'active',
         }))
 
         return NextResponse.json({ data: adminUsers })

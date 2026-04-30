@@ -43,6 +43,10 @@ export default function UserManagementPage() {
     const [newRole, setNewRole] = useState<UserRoleType>('user')
     const [updating, setUpdating] = useState(false)
 
+    // Status update state
+    const [statusTarget, setStatusTarget] = useState<{ user: AdminUser, newStatus: string } | null>(null)
+    const [updatingStatus, setUpdatingStatus] = useState(false)
+
     // Revoke subscription state
     const [revokeTarget, setRevokeTarget] = useState<AdminUser | null>(null)
     const [revoking, setRevoking] = useState(false)
@@ -96,6 +100,32 @@ export default function UserManagementPage() {
             toast.error(err.message)
         } finally {
             setUpdating(false)
+        }
+    }
+
+    const handleUpdateStatus = async () => {
+        if (!statusTarget) return
+
+        try {
+            setUpdatingStatus(true)
+            const res = await fetch(`/api/admin/users/${statusTarget.user.id}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: statusTarget.newStatus }),
+            })
+
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'Failed to update status')
+            }
+
+            toast.success(`User status updated to ${statusTarget.newStatus}`)
+            setStatusTarget(null)
+            fetchUsers()
+        } catch (err: any) {
+            toast.error(err.message)
+        } finally {
+            setUpdatingStatus(false)
         }
     }
 
@@ -168,7 +198,7 @@ export default function UserManagementPage() {
             return
         }
 
-        const headers = ['ID', 'Email', 'Role', 'Subscription', 'Joined Date', 'Last Login', 'Sessions']
+        const headers = ['ID', 'Email', 'Role', 'Subscription', 'Status', 'Joined Date', 'Last Login', 'Sessions']
         const csvContent = [
             headers.join(','),
             ...filteredUsers.map(u => {
@@ -177,6 +207,7 @@ export default function UserManagementPage() {
                     `"${u.email}"`,
                     u.role,
                     u.subscription_type,
+                    u.status || 'active',
                     new Date(u.created_at).toLocaleDateString(),
                     u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString() : 'Never',
                     u.session_count
@@ -362,6 +393,7 @@ export default function UserManagementPage() {
                                         <TableHead className="text-foreground">Email</TableHead>
                                         <TableHead className="text-foreground">Role</TableHead>
                                         <TableHead className="text-foreground">Subscription</TableHead>
+                                        <TableHead className="text-foreground">Status</TableHead>
                                         <TableHead className="text-foreground">Joined</TableHead>
                                         <TableHead className="text-foreground">Last Login</TableHead>
                                         <TableHead className="text-foreground">Sessions</TableHead>
@@ -398,6 +430,21 @@ export default function UserManagementPage() {
                                                     </span>
                                                 )}
                                             </TableCell>
+                                            <TableCell>
+                                                {user.status === 'deleted' ? (
+                                                    <span className="text-xs bg-red-500/20 text-red-600 dark:text-red-400 px-2 py-1 rounded inline-flex items-center gap-1">
+                                                        <Ban className="h-3 w-3" /> Deleted
+                                                    </span>
+                                                ) : user.status === 'suspended' ? (
+                                                    <span className="text-xs bg-orange-500/20 text-orange-600 dark:text-orange-400 px-2 py-1 rounded inline-flex items-center gap-1">
+                                                        <Ban className="h-3 w-3" /> Suspended
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs bg-green-500/20 text-green-600 dark:text-green-400 px-2 py-1 rounded inline-flex items-center gap-1">
+                                                        <Sparkles className="h-3 w-3" /> Active
+                                                    </span>
+                                                )}
+                                            </TableCell>
                                             <TableCell className="text-muted-foreground">{new Date(user.created_at).toLocaleDateString()}</TableCell>
                                             <TableCell className="text-muted-foreground">
                                                 {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString() : 'Never'}
@@ -425,6 +472,37 @@ export default function UserManagementPage() {
                                                         >
                                                             <Ban className="h-3 w-3 mr-1" />
                                                             Revoke
+                                                        </Button>
+                                                    )}
+
+                                                    {user.status === 'suspended' || user.status === 'deleted' ? (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="rounded-lg border-green-500/30 text-green-500 hover:bg-green-500/10 hover:border-green-500/50"
+                                                            onClick={() => setStatusTarget({ user, newStatus: 'active' })}
+                                                        >
+                                                            Restore
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="rounded-lg border-orange-500/30 text-orange-500 hover:bg-orange-500/10 hover:border-orange-500/50"
+                                                            onClick={() => setStatusTarget({ user, newStatus: 'suspended' })}
+                                                        >
+                                                            Suspend
+                                                        </Button>
+                                                    )}
+
+                                                    {(user.status === 'active' || user.status === 'suspended') && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="rounded-lg border-red-500/30 text-red-500 hover:bg-red-500/10 hover:border-red-500/50"
+                                                            onClick={() => setStatusTarget({ user, newStatus: 'deleted' })}
+                                                        >
+                                                            Delete
                                                         </Button>
                                                     )}
                                                 </div>
@@ -510,6 +588,57 @@ export default function UserManagementPage() {
                             className="bg-red-600 hover:bg-red-700 text-white"
                         >
                             {revoking ? 'Revoking...' : 'Yes, Revoke Premium'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Update Status Confirmation Dialog */}
+            <Dialog open={!!statusTarget} onOpenChange={(open) => !open && setStatusTarget(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {statusTarget?.newStatus === 'deleted' ? (
+                                <><Ban className="h-5 w-5 text-red-500" /> Delete User Account</>
+                            ) : statusTarget?.newStatus === 'suspended' ? (
+                                <><Ban className="h-5 w-5 text-orange-500" /> Suspend User Account</>
+                            ) : (
+                                <><Sparkles className="h-5 w-5 text-green-500" /> Restore User Account</>
+                            )}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {statusTarget?.newStatus === 'deleted' ? (
+                                <>This will permanently block <strong>{statusTarget?.user?.email}</strong> from accessing AI agents and canvas workflows. They can still log in, but all usage pathways will be revoked.</>
+                            ) : statusTarget?.newStatus === 'suspended' ? (
+                                <>This will suspend <strong>{statusTarget?.user?.email}</strong>. They will retain their existing data but cannot generate new tasks or access AI tools until restored.</>
+                            ) : (
+                                <>This will restore <strong>{statusTarget?.user?.email}</strong> giving them full access to the platform tools again without needing an access request.</>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {statusTarget?.newStatus === 'deleted' && (
+                        <div className="py-4">
+                            <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-500">
+                                ⚠️ Are you very sure you want to mark this account as deleted?
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setStatusTarget(null)} disabled={updatingStatus}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleUpdateStatus}
+                            disabled={updatingStatus}
+                            className={
+                                statusTarget?.newStatus === 'deleted'
+                                    ? "bg-red-600 hover:bg-red-700 text-white"
+                                    : statusTarget?.newStatus === 'suspended'
+                                        ? "bg-orange-600 hover:bg-orange-700 text-white"
+                                        : "bg-green-600 hover:bg-green-700 text-white"
+                            }
+                        >
+                            {updatingStatus ? 'Updating...' : `Yes, ${statusTarget?.newStatus === 'active' ? 'Restore' : statusTarget?.newStatus === 'deleted' ? 'Delete' : 'Suspend'}`}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

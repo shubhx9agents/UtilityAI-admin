@@ -10,6 +10,7 @@ export interface Profile {
     created_at: string
     last_login?: string
     updated_at: string
+    status?: 'active' | 'suspended' | 'deleted'
 }
 
 // Admin & Audit Types
@@ -109,6 +110,7 @@ export interface AdminUser {
     role: UserRoleType
     session_count: number
     subscription_type: 'free' | 'premium'
+    status: 'active' | 'suspended' | 'deleted'
 }
 
 // API Response Types
