@@ -4,7 +4,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { userId: string } }
+    { params }: { params: Promise<{ userId: string }> }
 ) {
     try {
         // Verify admin access
